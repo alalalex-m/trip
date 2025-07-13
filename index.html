@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>52勇闯三亚</title>
+    
+    <!-- Leaflet 地图库 -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" 
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" 
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <style>
         * {
             margin: 0;
@@ -199,6 +205,32 @@
             margin-bottom: 5px;
         }
 
+        .travel-info {
+            background: #e3f2fd;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-size: 0.85em;
+            color: #1565c0;
+            border-left: 3px solid #2196f3;
+        }
+
+        .taxi-btn {
+            background: #ff6b6b;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 0.8em;
+            margin: 5px 0;
+            transition: background 0.3s ease;
+        }
+
+        .taxi-btn:hover {
+            background: #ff5252;
+        }
+
         .restaurant-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -212,10 +244,31 @@
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.1);
             transition: transform 0.3s ease;
+            cursor: pointer;
+            position: relative;
         }
 
         .restaurant-card:hover {
             transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .restaurant-card::after {
+            content: "点击打开美团";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,107,107,0.9);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .restaurant-card:hover::after {
+            opacity: 1;
         }
 
         .restaurant-image {
@@ -310,6 +363,49 @@
             background: #357abd;
         }
 
+        .map-btn.active {
+            background: #ff6b6b;
+        }
+
+        /* Leaflet 地图自定义样式 */
+        .leaflet-popup-content-wrapper {
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .leaflet-popup-content {
+            font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+            font-size: 14px;
+            margin: 15px;
+        }
+
+        .popup-title {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .popup-description {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .popup-taxi-btn {
+            background: #ff6b6b;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+
+        .popup-taxi-btn:hover {
+            background: #ff5252;
+        }
+
         .tips-section {
             background: #fff3cd;
             border-radius: 15px;
@@ -363,6 +459,10 @@
                 flex-direction: column;
                 align-items: center;
             }
+
+            #mapContainer {
+                height: 400px !important;
+            }
         }
     </style>
 </head>
@@ -389,7 +489,7 @@
                 <div class="weather-day">
                     <div><strong>7月26日</strong></div>
                     <div>多云 26°C - 34°C</div>
-                    <div>购物休闲日</div>
+                    <div>西岛+购物日</div>
                 </div>
                 <div class="weather-day">
                     <div><strong>7月27日</strong></div>
@@ -406,12 +506,12 @@
                     <div class="overview-card">
                         <h3>🏨 住宿</h3>
                         <p>三亚亚龙湾万豪度假酒店</p>
-                        <small>5层以上豪海房，视野绝佳</small>
+                        <small>5层以上豪海房，视野绝佳，尾数奇数视野更佳</small>
                     </div>
                     <div class="overview-card">
                         <h3>🎨 核心理念</h3>
                         <p>每日自然醒 + 1项核心活动</p>
-                        <small>轻松惬意，不赶时间</small>
+                        <small>森林/免税/海景餐厅+充足沙滩休闲</small>
                     </div>
                     <div class="overview-card">
                         <h3>🚗 交通方式</h3>
@@ -429,155 +529,176 @@
             <div class="day-schedule">
                 <div class="day-card">
                     <div class="day-header">
-                        <div class="day-title">Day 1 - 抵达日</div>
+                        <div class="day-title">Day 1 - 抵达 + 海鲜大餐 + 沙滩酒吧</div>
                         <div class="day-date">7月24日</div>
                     </div>
                     <div class="timeline">
                         <div class="timeline-item">
                             <div class="timeline-time">10:45 - 14:00</div>
                             <div class="timeline-content">
-                                <h4>✈️ 无锡 → 三亚</h4>
-                                <p>抵达后乘酒店接机或出租车</p>
-                                <small style="color: #666;">🚗 机场→万豪酒店：43公里，约42分钟车程</small>
+                                <h4>✈️ 无锡飞三亚</h4>
+                                <p>乘出租车至酒店</p>
+                                <div class="travel-info">🚗 机场→万豪酒店：43公里，约40分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('三亚凤凰国际机场', '三亚亚龙湾万豪度假酒店', 109.412, 18.302, 109.630725, 18.226504)">🚕 机场叫车</button>
                             </div>
                         </div>
                         <div class="timeline-item">
                             <div class="timeline-time">15:00</div>
                             <div class="timeline-content">
-                                <h4>🏨 入住万豪酒店</h4>
-                                <p>办理入住手续，稍作休整</p>
+                                <h4>🏨 入住万豪</h4>
+                                <p>休整换装（房号尾数奇数视野更佳）</p>
                             </div>
                         </div>
                         <div class="timeline-item">
                             <div class="timeline-time">16:00 - 18:00</div>
                             <div class="timeline-content">
-                                <h4>🏊‍♀️ 酒店泳池时光</h4>
-                                <p>儿童浅水区玩水（适合8岁女孩）</p>
+                                <h4>🏊‍♀️ 酒店泳池玩水</h4>
+                                <p><strong>儿童区有遮阳棚</strong>，提供免费臂圈</p>
                             </div>
                         </div>
                         <div class="timeline-item">
                             <div class="timeline-time">18:30 - 20:00</div>
                             <div class="timeline-content">
-                                <h4>🦞 小海豚海鲜餐厅</h4>
-                                <p>5公里内免费接送，海鲜现挑现做</p>
-                                <small style="color: #666;">🚗 万豪酒店→小海豚：2.2公里，约7分钟车程</small><br>
-                                <small>推荐：白灼基围虾（儿童友好）、蒜蓉蒸龙虾、椰子饭</small>
+                                <h4>🦞 小海豚连锁海鲜餐厅（亚龙湾店）</h4>
+                                <p><strong>推荐</strong>：白灼基围虾（儿童友好）、蒜蓉蒸龙虾、椰子饭</p>
+                                <p><strong>贴士</strong>：5公里内免费接送，人均¥150，海鲜现挑现做</p>
+                                <div class="travel-info">🚗 万豪酒店→小海豚：2.2公里，约7分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('小海豚海鲜餐厅', '三亚亚龙湾万豪度假酒店', 109.645250, 18.234440, 109.630725, 18.226504)">🚕 叫车前往</button>
                             </div>
                         </div>
                         <div class="timeline-item">
-                            <div class="timeline-time">20:30 - 22:00</div>
+                            <div class="timeline-time">21:30 - 22:30</div>
                             <div class="timeline-content">
                                 <h4>🍹 万豪酒店·沙滩酒吧</h4>
-                                <p>点鸡尾酒/椰青，听live音乐，赤脚踩沙看星空</p>
-                                <small>儿童可喝果汁，享受海边音乐时光</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="day-card">
-                    <div class="day-header">
-                        <div class="day-title">Day 2 - 森林公园 + 海景晚餐</div>
-                        <div class="day-date">7月25日</div>
-                    </div>
-                    <div class="timeline">
-                        <div class="timeline-item">
-                            <div class="timeline-time">10:00 - 11:30</div>
-                            <div class="timeline-content">
-                                <h4>🌅 悠闲早餐</h4>
-                                <p>享用酒店自助早餐至10:30</p>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-time">11:30 - 14:30</div>
-                            <div class="timeline-content">
-                                <h4>🌲 亚龙湾热带森林公园</h4>
-                                <p>观光车直达<strong>兰花谷</strong>（雨林步道喂孔雀/溯溪）→ <strong>山顶公园</strong>（非诚勿扰试婚房打卡）→ <strong>雨林飞漂</strong>（玻璃水槽滑道，1米以上可玩）</p>
-                                <small style="color: #666;">🚗 万豪酒店→森林公园：3公里，约7分钟车程</small><br>
-                                <small>💡 网购门票+观光车套票；穿运动鞋、带驱蚊液；雨林飞漂穿速干衣</small>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-time">15:00 - 17:00</div>
-                            <div class="timeline-content">
-                                <h4>🏖️ 酒店午休/沙滩拾贝</h4>
-                                <p>沙滩挖沙、拾贝壳或房间休息</p>
-                                <small>备小桶+铲子，享受亲子沙滩时光</small>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-time">17:30 - 20:00</div>
-                            <div class="timeline-content">
-                                <h4>🌅 东海龙宫日落晚餐</h4>
-                                <p>提前预约临海位，边用餐边赏粉紫色晚霞</p>
-                                <small style="color: #666;">🚗 森林公园→东海龙宫：18公里，约29分钟车程</small><br>
-                                <small>推荐：椒盐泰国富贵虾（巨型皮皮虾）、清蒸石斑鱼（切片无刺，儿童友好）</small>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-time">20:00 - 22:00</div>
-                            <div class="timeline-content">
-                                <h4>🍧 大东海夜市·清补凉巡礼</h4>
-                                <p>夜市美食体验，品尝海南特色清补凉</p>
-                                <small style="color: #666;">🚗 东海龙宫→大东海夜市：1.1公里，约4分钟车程</small><br>
-                                <small>推荐：郑阿婆清补凉（椰奶冰沙+芋圆）、阿菊炒冰店（榴莲炒冰）</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="day-card">
-                    <div class="day-header">
-                        <div class="day-title">Day 3 - 免税购物 + 庭院Brunch</div>
-                        <div class="day-date">7月26日</div>
-                    </div>
-                    <div class="timeline">
-                        <div class="timeline-item">
-                            <div class="timeline-time">10:00 - 11:30</div>
-                            <div class="timeline-content">
-                                <h4>🌅 酒店早餐</h4>
-                                <p>悠闲享用早餐</p>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-time">11:30 - 14:00</div>
-                            <div class="timeline-content">
-                                <h4>🛍️ 三亚国际免税城</h4>
-                                <p>先购黄金/手机（周大福、苹果不积分但可升级会员）→ 再买化妆品（限30件）</p>
-                                <small style="color: #666;">🚗 万豪酒店→免税城：30.5公里，约40分钟车程</small><br>
-                                <small>💡 儿童可在B区3层餐饮区休息买冰淇淋；离岛前6小时截止购物</small>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-time">14:30 - 16:00</div>
-                            <div class="timeline-content">
-                                <h4>🌿 黎竹·海南私房手艺菜</h4>
-                                <p>庭院Brunch，万豪酒店旁东榕美食广场</p>
-                                <small style="color: #666;">🚗 免税城→东榕美食广场：32.8公里，约42分钟车程</small><br>
-                                <small>推荐：山捞叶炒鸡、仙人掌果汁、槟榔花炖乳鸽汤</small>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-time">16:30 - 18:30</div>
-                            <div class="timeline-content">
-                                <h4>🏖️ 酒店沙滩自由活动</h4>
-                                <p>挖沙、浅滩戏水</p>
-                            </div>
-                        </div>
-                        <div class="timeline-item">
-                            <div class="timeline-time">19:30 - 21:00</div>
-                            <div class="timeline-content">
-                                <h4>🔥 万豪酒店·海鲜烧烤自助</h4>
-                                <p>每周六沙滩烧烤趴（需预约）</p>
-                                <small>亮点：驻唱+烤龙虾+儿童冰淇淋角</small>
+                                <p>点鸡尾酒/椰青，听live音乐（儿童可喝果汁），赤脚踩沙看星空</p>
                             </div>
                         </div>
                         <div class="timeline-item">
                             <div class="timeline-time">21:30 - 22:30</div>
                             <div class="timeline-content">
                                 <h4>🎬 酒店泳池浮毯电影</h4>
-                                <p>周四/六开放，免费提供爆米花</p>
-                                <small>儿童需家长陪同，海边观影独特体验</small>
+                                <p>周四/六开放，免费提供爆米花（儿童需家长陪同）</p>
+                                <small style="color: #666;">💡 两个活动可自行选择，或者都体验</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="day-card">
+                    <div class="day-header">
+                        <div class="day-title">Day 2 - 热带森林公园 + 天空餐厅日落</div>
+                        <div class="day-date">7月25日</div>
+                    </div>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-time">10:00</div>
+                            <div class="timeline-content">
+                                <h4>🌅 起床享用酒店自助早餐</h4>
+                                <p>打包可颂/水果作为雨林简餐</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">11:30 - 14:30</div>
+                            <div class="timeline-content">
+                                <h4>🌲 亚龙湾热带森林公园</h4>
+                                <p>① 观光车直达<strong>兰花谷</strong>（雨林步道喂孔雀/溯溪）→</p>
+                                <p>② <strong>山顶公园</strong>（非诚勿扰试婚房打卡+雨林影院）→</p>
+                                <p>③ <strong>雨林飞漂</strong>（玻璃水槽滑道，1米以上可玩，<strong>非高空</strong>，雨林飞漂穿速干衣，现场购雨衣¥10）</p>
+                                <p><strong>贴士</strong>：网购门票+观光车套票；穿运动鞋、带驱蚊液；午餐自备零食</p>
+                                <div class="travel-info">🚗 万豪酒店→森林公园：3公里，约7分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('亚龙湾热带森林公园', '三亚亚龙湾万豪度假酒店', 109.640, 18.240, 109.630725, 18.226504)">🚕 叫车前往</button>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">15:00 - 17:00</div>
+                            <div class="timeline-content">
+                                <h4>🏖️ 酒店午休/沙滩拾贝</h4>
+                                <p>前台可领沙滩工具包</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">17:30 - 20:00</div>
+                            <div class="timeline-content">
+                                <h4>🌅 31天空餐厅（三亚湾店）</h4>
+                                <p><strong>安排</strong>：提前1周预约<strong>靠窗位</strong>，建议18:00前到店捕捉金色日落</p>
+                                <p><strong>推荐菜</strong>：黑松露烤鸡（儿童友好）、天空海鲜拼盘、蓝色珊瑚特饮</p>
+                                <p><strong>贴士</strong>：从亚龙湾打车约40分钟，人均¥300-¥400，儿童可点意面套餐，穿浅色衣物更出片</p>
+                                <div class="travel-info">🚗 森林公园→31天空餐厅：约40分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('31天空餐厅', '亚龙湾热带森林公园', 109.511, 18.247, 109.640, 18.240)">🚕 叫车前往</button>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">20:30 - 22:00</div>
+                            <div class="timeline-content">
+                                <h4>🍧 大东海夜市·清补凉巡礼</h4>
+                                <p>晚餐后路过<strong>大东海夜市</strong>可外带清补凉（节省专程时间）</p>
+                                <p><strong>推荐</strong>：郑阿婆清补凉（椰奶冰沙+芋圆）、阿菊炒冰店（榴莲炒冰）</p>
+                                <div class="travel-info">🚗 31天空餐厅→大东海夜市：约5分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('大东海夜市', '31天空餐厅', 109.523050, 18.221443, 109.511, 18.247)">🚕 叫车前往</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="day-card">
+                    <div class="day-header">
+                        <div class="day-title">Day 3 - 西岛深度游 + 免税购物</div>
+                        <div class="day-date">7月26日</div>
+                    </div>
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-time">9:30</div>
+                            <div class="timeline-content">
+                                <h4>🌅 起床，酒店早餐</h4>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">10:30 - 11:00</div>
+                            <div class="timeline-content">
+                                <h4>🚗 打车至西岛码头</h4>
+                                <div class="travel-info">🚗 亚龙湾→码头：约40分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('西岛码头', '三亚亚龙湾万豪度假酒店', 109.373183, 18.281737, 109.630725, 18.226504)">🚕 叫车前往</button>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">11:30 - 15:30</div>
+                            <div class="timeline-content">
+                                <h4>🏝️ 西岛深度游</h4>
+                                <p><strong>路线</strong>：</p>
+                                <p>① 登岛后租电动车（¥20/小时）环岛 →</p>
+                                <p>② 渔村文创墙拍照 → 百年珊瑚老屋 →</p>
+                                <p>③ 牛王岭赶海（备小桶&铲子，查潮汐表）→</p>
+                                <p>④ 水上项目（可选拖曳伞/香蕉船）</p>
+                                <p><strong>午餐</strong>：岛上小吃（网红虾饼¥8、墨鱼饼¥10）</p>
+                                <p><strong>离岛</strong>：最晚15:30乘船返程（排队高峰预留30分钟）</p>
+                                <p><strong>贴士</strong>：船票提前1小时网购（¥90/人含往返，儿童半价），现场换票</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">16:00 - 18:00</div>
+                            <div class="timeline-content">
+                                <h4>🛍️ 三亚国际免税城</h4>
+                                <p><strong>压缩购物策略</strong>：</p>
+                                <p>儿童安置：B区3层游戏区（付费托管¥50/小时）</p>
+                                <p><strong>重要</strong>：离岛前6小时截止购物（16:00飞机需10:00前买单），Day3压缩后仍满足</p>
+                                <div class="travel-info">🚗 西岛码头→免税城：约30分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('三亚国际免税城', '西岛码头', 109.750634, 18.373824, 109.373183, 18.281737)">🚕 叫车前往</button>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">19:30 - 21:00</div>
+                            <div class="timeline-content">
+                                <h4>🔥 酒店海鲜烧烤自助</h4>
+                                <p><strong>亮点</strong>：万豪每周六沙滩烧烤趴（需预约），驻唱+烤龙虾+儿童冰淇淋角</p>
+                                <div class="travel-info">🚗 免税城→万豪酒店：30公里，约42分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('三亚亚龙湾万豪度假酒店', '三亚国际免税城', 109.630725, 18.226504, 109.750634, 18.373824)">🚕 叫车回酒店</button>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-time">21:30 - 22:30</div>
+                            <div class="timeline-content">
+                                <h4>🎬 酒店泳池浮毯电影</h4>
+                                <p>周四/六开放，免费提供爆米花（儿童需家长陪同）</p>
                             </div>
                         </div>
                     </div>
@@ -590,32 +711,33 @@
                     </div>
                     <div class="timeline">
                         <div class="timeline-item">
-                            <div class="timeline-time">10:00 - 11:00</div>
+                            <div class="timeline-time">10:00</div>
                             <div class="timeline-content">
-                                <h4>🎒 退房</h4>
-                                <p>整理行李，办理退房手续</p>
+                                <h4>🌅 起床，退房</h4>
                             </div>
                         </div>
                         <div class="timeline-item">
                             <div class="timeline-time">11:00 - 12:30</div>
                             <div class="timeline-content">
-                                <h4>🐟 益龙海景渔村</h4>
-                                <p>靠窗位看渔船+凤凰岛景，告别三亚的海景早餐</p>
-                                <small>推荐：蒜蓉蒸龙虾（称重选小只）、椒盐皮皮虾、海胆蒸蛋（儿童专属）</small>
+                                <h4>🐟 益龙海景渔村（三亚湾）</h4>
+                                <p><strong>安排</strong>：靠窗位看渔船+凤凰岛景，推荐蒜蓉蒸龙虾（称重选小只）、椒盐皮皮虾、海胆蒸蛋（儿童专属）</p>
+                                <div class="travel-info">🚗 万豪酒店→益龙渔村：约40分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('益龙海景渔村', '三亚亚龙湾万豪度假酒店', 109.464219, 18.282593, 109.630725, 18.226504)">🚕 叫车前往</button>
                             </div>
                         </div>
                         <div class="timeline-item">
-                            <div class="timeline-time">13:00 - 14:00</div>
+                            <div class="timeline-time">13:00</div>
                             <div class="timeline-content">
-                                <h4>🚗 前往机场</h4>
-                                <p>预留2小时提货时间（免税商品在109/110登机口）</p>
+                                <h4>🚗 出发去机场</h4>
+                                <p>预留<strong>2小时提货</strong>（免税商品在109/110登机口提）</p>
+                                <div class="travel-info">🚗 益龙渔村→机场：约30分钟车程</div>
+                                <button class="taxi-btn" onclick="callTaxi('三亚凤凰国际机场', '益龙海景渔村', 109.412, 18.302, 109.464219, 18.282593)">🚕 叫车去机场</button>
                             </div>
                         </div>
                         <div class="timeline-item">
                             <div class="timeline-time">16:00</div>
                             <div class="timeline-content">
-                                <h4>✈️ 三亚 → 无锡</h4>
-                                <p>愉快返程</p>
+                                <h4>✈️ 三亚飞无锡</h4>
                             </div>
                         </div>
                     </div>
@@ -626,7 +748,7 @@
         <div class="main-content">
             <h2 style="color: #4a90e2; font-size: 2em; margin-bottom: 20px; text-align: center;">🍽️ 精选海景餐厅</h2>
             <div class="restaurant-grid">
-                <div class="restaurant-card">
+                <div class="restaurant-card" onclick="openRestaurant('xiaohaitun')">
                     <div class="restaurant-image">🦞 海鲜盛宴</div>
                     <div class="restaurant-info">
                         <div class="restaurant-name">小海豚海鲜餐厅</div>
@@ -642,55 +764,23 @@
                     </div>
                 </div>
 
-                <div class="restaurant-card">
-                    <div class="restaurant-image">🌅 日落美景</div>
-                    <div class="restaurant-info">
-                        <div class="restaurant-name">东海龙宫(大东海店)</div>
-                        <div class="restaurant-details">
-                            <div class="rating">⭐ 4.6</div>
-                            <div class="price">¥120/人</div>
-                        </div>
-                        <div class="restaurant-address">📍 大东海旅游区海花路21号</div>
-                        <div class="restaurant-hours">⏰ 11:00-23:00</div>
-                        <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                            经典海景餐厅，观赏日落的绝佳位置，椒盐泰国富贵虾必点
-                        </p>
-                    </div>
-                </div>
-
-                <div class="restaurant-card">
-                    <div class="restaurant-image">🌊 海景精致</div>
-                    <div class="restaurant-info">
-                        <div class="restaurant-name">鑫佰鲜海景餐厅</div>
-                        <div class="restaurant-details">
-                            <div class="rating">⭐ 4.5</div>
-                            <div class="price">¥128/人</div>
-                        </div>
-                        <div class="restaurant-address">📍 大东海海韵路海星巷k16号</div>
-                        <div class="restaurant-hours">⏰ 10:30-24:00</div>
-                        <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                            大东海知名海景餐厅，环境优雅，海鲜新鲜
-                        </p>
-                    </div>
-                </div>
-
-                <div class="restaurant-card">
+                <div class="restaurant-card" onclick="openRestaurant('tiankong31')">
                     <div class="restaurant-image">🏙️ 高空景观</div>
                     <div class="restaurant-info">
-                        <div class="restaurant-name">31天空餐厅</div>
+                        <div class="restaurant-name">31天空餐厅（三亚湾店）</div>
                         <div class="restaurant-details">
                             <div class="rating">⭐ 4.7</div>
-                            <div class="price">¥152/人</div>
+                            <div class="price">¥300-400/人</div>
                         </div>
                         <div class="restaurant-address">📍 友谊路6号擎天半岛B栋31层</div>
                         <div class="restaurant-hours">⏰ 11:00-01:30</div>
                         <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                            31层高空观景餐厅，俯瞰三亚全景，浪漫氛围
+                            提前1周预约靠窗位，建议18:00前到店捕捉金色日落，黑松露烤鸡儿童友好
                         </p>
                     </div>
                 </div>
 
-                <div class="restaurant-card">
+                <div class="restaurant-card" onclick="openRestaurant('lizhu')">
                     <div class="restaurant-image">🌿 庭院美食</div>
                     <div class="restaurant-info">
                         <div class="restaurant-name">黎竹·海南私房手艺菜</div>
@@ -701,12 +791,12 @@
                         <div class="restaurant-address">📍 万豪酒店旁东榕美食广场</div>
                         <div class="restaurant-hours">⏰ 11:00-14:00, 17:00-21:30</div>
                         <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
-                            庭院Brunch，推荐山捞叶炒鸡、仙人掌果汁，海南本土风味
+                            庭院Brunch，推荐山捞叶炒鸡、仙人掌果汁、槟榔花炖乳鸽汤
                         </p>
                     </div>
                 </div>
 
-                <div class="restaurant-card">
+                <div class="restaurant-card" onclick="openRestaurant('yilong')">
                     <div class="restaurant-image">🐟 渔村风情</div>
                     <div class="restaurant-info">
                         <div class="restaurant-name">益龙海景渔村</div>
@@ -722,7 +812,7 @@
                     </div>
                 </div>
 
-                <div class="restaurant-card">
+                <div class="restaurant-card" onclick="openRestaurant('yeshi')">
                     <div class="restaurant-image">🍧 夜市美食</div>
                     <div class="restaurant-info">
                         <div class="restaurant-name">大东海夜市·清补凉</div>
@@ -737,226 +827,399 @@
                         </p>
                     </div>
                 </div>
+
+                <div class="restaurant-card" onclick="openRestaurant('xidao')">
+                    <div class="restaurant-image">🏝️ 西岛小吃</div>
+                    <div class="restaurant-info">
+                        <div class="restaurant-name">西岛渔村小吃</div>
+                        <div class="restaurant-details">
+                            <div class="rating">⭐ 4.3</div>
+                            <div class="price">¥30/人</div>
+                        </div>
+                        <div class="restaurant-address">📍 西岛渔村</div>
+                        <div class="restaurant-hours">⏰ 8:00-17:00</div>
+                        <p style="margin-top: 10px; color: #666; font-size: 0.9em;">
+                            网红虾饼¥8、墨鱼饼¥10，新鲜制作，海岛特色小吃
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="map-section">
-            <h2>🗺️ 行程地图 & 路线规划</h2>
+            <h2>🗺️ 当天足迹</h2>
             <div class="map-buttons">
-                <button class="map-btn" onclick="openMapRoute('day1')">Day 1 路线</button>
-                <button class="map-btn" onclick="openMapRoute('day2')">Day 2 路线</button>
-                <button class="map-btn" onclick="openMapRoute('day3')">Day 3 路线</button>
-                <button class="map-btn" onclick="openMapRoute('day4')">Day 4 路线</button>
-                <button class="map-btn" onclick="openFullMap()">完整行程地图</button>
-                <button class="map-btn" onclick="openTaxiService()">一键叫车</button>
+                <button class="map-btn active" onclick="showDayRoute('day1')">Day 1 足迹</button>
+                <button class="map-btn" onclick="showDayRoute('day2')">Day 2 足迹</button>
+                <button class="map-btn" onclick="showDayRoute('day3')">Day 3 足迹</button>
+                <button class="map-btn" onclick="showDayRoute('day4')">Day 4 足迹</button>
+                <button class="map-btn" onclick="showFullRoute()">完整行程地图</button>
+            </div>
+            <div id="mapContainer" style="height: 500px; border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin: 20px 0;">
+                <!-- 真实地图将在这里加载 -->
             </div>
             <div style="text-align: center; padding: 20px;">
-                <p style="color: #666; margin-bottom: 15px;">点击上方按钮，在高德地图中查看详细路线和实时导航</p>
+                <p style="color: #666; margin-bottom: 15px;">点击上方按钮查看不同天的详细足迹路线</p>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; display: inline-block;">
-                    <strong>🚗 出行建议：</strong>同一天景区间建议打车前往，舒适便捷
+                    <strong>🗺️ 真实地图：</strong>使用 OpenStreetMap 显示准确的地理位置和路线
                 </div>
                 <div style="margin-top: 20px;">
-                    <h4>🌟 使用说明</h4>
-                    <p style="color: #666; font-size: 0.9em;">• <strong>完整行程地图</strong>：查看所有地点标记</p>
-                    <p style="color: #666; font-size: 0.9em;">• <strong>各日路线按钮</strong>：可选择查看地点标记或路线规划</p>
-                    <p style="color: #666; font-size: 0.9em;">• <strong>一键叫车</strong>：直接唤起高德地图打车功能</p>
-                    <p style="color: #666; font-size: 0.8em;">💡 建议在手机上使用，体验更佳</p>
+                    <h4>🌟 地图功能</h4>
+                    <p style="color: #666; font-size: 0.9em;">• <strong>📍 精确定位</strong>：显示真实的地理位置和路线轨迹</p>
+                    <p style="color: #666; font-size: 0.9em;">• <strong>🔍 地图操作</strong>：支持缩放、拖拽和点击查看详情</p>
+                    <p style="color: #666; font-size: 0.9em;">• <strong>🎨 路线分层</strong>：不同天数用不同颜色区分，清晰明了</p>
+                    <p style="color: #666; font-size: 0.9em;">• <strong>🚕 一键叫车</strong>：详细行程中每个项目都有叫车功能</p>
+                    <p style="color: #666; font-size: 0.8em;">💡 手机和电脑端都可完美显示，支持GPS定位</p>
                 </div>
             </div>
         </div>
 
         <div class="tips-section">
-            <h3>💡 贴心小贴士</h3>
+            <h3>💡 关键提示</h3>
             <div class="tips-grid">
                 <div class="tip-item">
-                    <h4>🏨 酒店福利</h4>
-                    <p>万豪自助早餐至10:30，高层豪海房视野更佳，池畔吧饮品性价比优于正餐</p>
+                    <h4>🌤️ 天气与装备</h4>
+                    <p>7月多阵雨，备防晒衣+驱蚊液；泳衣带2套方便换洗</p>
+                </div>
+                <div class="tip-item">
+                    <h4>🛍️ 免税购物贴士</h4>
+                    <p>黄金/手机优先买升级会员，化妆品线上跨品牌折扣更多；离岛后180天内可官网补购直邮（不限件数）</p>
+                </div>
+                <div class="tip-item">
+                    <h4>🏝️ 西岛交通</h4>
+                    <p>船票提前1小时网购（¥90/人含往返，儿童半价），现场换票</p>
+                </div>
+                <div class="tip-item">
+                    <h4>🍽️ 31天空餐厅预约</h4>
+                    <p>通过"美味不用等"APP锁定窗边位，备注"日落观景"</p>
+                </div>
+                <div class="tip-item">
+                    <h4>⏰ 免税购物时间</h4>
+                    <p>离岛前6小时截止购物（16:00飞机需10:00前买单），Day3压缩后仍满足</p>
                 </div>
                 <div class="tip-item">
                     <h4>👧 儿童关怀</h4>
                     <p>森林公园雨林飞漂1米以上可玩，兰花谷喂孔雀适合8岁女孩；免税店B区3层设儿童休息区</p>
                 </div>
                 <div class="tip-item">
-                    <h4>🌤️ 天气装备</h4>
-                    <p>7月多阵雨，备防晒衣+驱蚊液；泳衣带2套方便换洗</p>
-                </div>
-                <div class="tip-item">
-                    <h4>🛍️ 购物贴士</h4>
-                    <p>黄金/手机优先买升级会员，化妆品线上跨品牌折扣更多；离岛后180天内可官网补购</p>
-                </div>
-                <div class="tip-item">
-                    <h4>🍽️ 用餐预订</h4>
-                    <p>海景餐厅建议提前预约靠窗位，17:30-18:00抵达观赏最美日落</p>
-                </div>
-                <div class="tip-item">
-                    <h4>💰 预算参考</h4>
-                    <p>海景餐厅人均100-150元，森林公园门票+观光车约150元/人，免税购物看个人需求</p>
-                </div>
-                <div class="tip-item">
                     <h4>🏨 酒店特色</h4>
                     <p>万豪沙滩酒吧live音乐，周六海鲜烧烤自助需预约，周四/六泳池浮毯电影免费爆米花</p>
+                </div>
+                <div class="tip-item">
+                    <h4>🚗 出行建议</h4>
+                    <p>行程已集成实时路程时间，同日景点间建议打车，舒适便捷适合亲子</p>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // 地图路线规划功能
-        function openMapRoute(day) {
-            const routes = {
-                day1: {
-                    title: "Day 1 - 抵达日路线",
-                    points: [
-                        { name: "三亚凤凰国际机场", lon: 109.412, lat: 18.302 },
-                        { name: "三亚亚龙湾万豪度假酒店", lon: 109.630725, lat: 18.226504 },
-                        { name: "小海豚海鲜餐厅", lon: 109.645250, lat: 18.234440 }
-                    ]
+        // 餐厅链接功能
+        function openRestaurant(restaurantId) {
+            const restaurants = {
+                xiaohaitun: {
+                    name: '小海豚海鲜餐厅',
+                    meituan: 'imeituan://www.meituan.com/search/home?entrance=7&q=小海豚海鲜餐厅 亚龙湾'
                 },
-                day2: {
-                    title: "Day 2 - 森林公园+海景晚餐+夜市",
-                    points: [
-                        { name: "三亚亚龙湾万豪度假酒店", lon: 109.630725, lat: 18.226504 },
-                        { name: "亚龙湾热带森林公园", lon: 109.640, lat: 18.240 },
-                        { name: "东海龙宫(大东海店)", lon: 109.520702, lat: 18.220858 },
-                        { name: "大东海夜市", lon: 109.523050, lat: 18.221443 }
-                    ]
+                tiankong31: {
+                    name: '31天空餐厅',
+                    meituan: 'imeituan://www.meituan.com/search/home?entrance=7&q=31天空餐厅 三亚湾'
                 },
-                day3: {
-                    title: "Day 3 - 免税购物+海南私房菜",
-                    points: [
-                        { name: "三亚亚龙湾万豪度假酒店", lon: 109.630725, lat: 18.226504 },
-                        { name: "三亚国际免税城", lon: 109.750634, lat: 18.373824 },
-                        { name: "黎竹·海南私房手艺菜", lon: 109.630860, lat: 18.228062 }
-                    ]
+                lizhu: {
+                    name: '黎竹·海南私房手艺菜',
+                    meituan: 'imeituan://www.meituan.com/search/home?entrance=7&q=黎竹海南私房手艺菜 三亚'
                 },
-                day4: {
-                    title: "Day 4 - 海景早餐+返程",
-                    points: [
-                        { name: "三亚亚龙湾万豪度假酒店", lon: 109.630725, lat: 18.226504 },
-                        { name: "益龙海景渔村", lon: 109.464219, lat: 18.282593 },
-                        { name: "三亚凤凰国际机场", lon: 109.412, lat: 18.302 }
-                    ]
+                yilong: {
+                    name: '益龙海景渔村',
+                    meituan: 'imeituan://www.meituan.com/search/home?entrance=7&q=益龙海景渔村 三亚湾'
+                },
+                yeshi: {
+                    name: '大东海夜市',
+                    meituan: 'imeituan://www.meituan.com/search/home?entrance=7&q=大东海夜市 清补凉'
+                },
+                xidao: {
+                    name: '西岛渔村小吃',
+                    meituan: 'imeituan://www.meituan.com/search/home?entrance=7&q=西岛 小吃'
                 }
             };
 
-            const route = routes[day];
-            if (route) {
-                // 提供选择：查看所有地点或路线规划
-                const choice = confirm(`${route.title}\n\n点击"确定"查看所有地点标记\n点击"取消"查看路线规划`);
+            const restaurant = restaurants[restaurantId];
+            if (restaurant) {
+                // 直接打开美团链接
+                window.open(restaurant.meituan, '_blank');
                 
-                if (choice) {
-                    // 显示所有地点标记
-                    const allPointsUrl = createAllPointsUrl(route.points);
-                    window.open(allPointsUrl, '_blank');
-                } else {
-                    // 显示路线规划
-                    const routeUrl = createPersonalMapUrl(route.title, route.points);
-                    window.open(routeUrl, '_blank');
+                // 如果无法打开美团APP，显示提示
+                setTimeout(() => {
+                    const fallback = confirm(`正在为您打开美团搜索：${restaurant.name}\n\n如果未能打开美团APP，是否使用网页版美团？`);
+                    if (fallback) {
+                        const webUrl = `https://www.meituan.com/search/?q=${encodeURIComponent(restaurant.name)}`;
+                        window.open(webUrl, '_blank');
+                    }
+                }, 2000);
+            }
+        }
+
+        // 一键叫车功能
+        function callTaxi(destination, origin, destLon, destLat, originLon, originLat) {
+            // 构建高德地图打车URI
+            const taxiUrl = `amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=${destLat}&dlon=${destLon}&dname=${encodeURIComponent(destination)}&slat=${originLat}&slon=${originLon}&sname=${encodeURIComponent(origin)}`;
+            
+            // 尝试打开高德地图
+            window.open(taxiUrl, '_blank');
+            
+            // 如果无法打开APP，显示提示
+            setTimeout(() => {
+                const fallback = confirm(`正在为您叫车前往：${destination}\n\n如果未能打开高德地图APP，是否使用网页版？`);
+                if (fallback) {
+                    const webUrl = `https://uri.amap.com/navigation?to=${destLon},${destLat}&mode=car&policy=1&src=mypage&callnative=1`;
+                    window.open(webUrl, '_blank');
                 }
+            }, 2000);
+        }
+
+        // 真实地图功能
+        let map = null;
+        let currentMarkers = [];
+        let currentPolylines = [];
+
+        // 地点坐标数据
+        const locations = {
+            airport: { lat: 18.302, lng: 109.412, name: '三亚凤凰国际机场', emoji: '✈️' },
+            marriott: { lat: 18.226504, lng: 109.630725, name: '三亚亚龙湾万豪度假酒店', emoji: '🏨' },
+            xiaohaitun: { lat: 18.234440, lng: 109.645250, name: '小海豚海鲜餐厅', emoji: '🦞' },
+            beachbar: { lat: 18.225, lng: 109.631, name: '万豪沙滩酒吧', emoji: '🍹' },
+            forest: { lat: 18.240, lng: 109.640, name: '亚龙湾热带森林公园', emoji: '🌲' },
+            sky31: { lat: 18.247, lng: 109.511, name: '31天空餐厅', emoji: '🏙️' },
+            nightmarket: { lat: 18.221443, lng: 109.523050, name: '大东海夜市', emoji: '🍧' },
+            xidao: { lat: 18.281737, lng: 109.373183, name: '西岛码头', emoji: '🛥️' },
+            dutyfree: { lat: 18.373824, lng: 109.750634, name: '三亚国际免税城', emoji: '🛍️' },
+            bbq: { lat: 18.226504, lng: 109.630725, name: '酒店烧烤', emoji: '🔥' },
+            yilong: { lat: 18.282593, lng: 109.464219, name: '益龙海景渔村', emoji: '🐟' }
+        };
+
+        // 每天的路线数据
+        const dayRoutes = {
+            day1: {
+                color: '#ff6b6b',
+                locations: ['airport', 'marriott', 'xiaohaitun', 'beachbar'],
+                title: 'Day 1 - 抵达 + 海鲜大餐 + 沙滩酒吧'
+            },
+            day2: {
+                color: '#4ecdc4', 
+                locations: ['marriott', 'forest', 'sky31', 'nightmarket'],
+                title: 'Day 2 - 热带森林公园 + 天空餐厅日落'
+            },
+            day3: {
+                color: '#45b7d1',
+                locations: ['marriott', 'xidao', 'dutyfree', 'bbq'],
+                title: 'Day 3 - 西岛深度游 + 免税购物'
+            },
+            day4: {
+                color: '#f39c12',
+                locations: ['marriott', 'yilong', 'airport'],
+                title: 'Day 4 - 海景早餐 + 返程'
             }
-        }
+        };
 
-        function openFullMap() {
-            // 创建包含所有重要地点的标记地图
-            const allPoints = [
-                { name: "三亚凤凰国际机场", lon: 109.412, lat: 18.302 },
-                { name: "三亚亚龙湾万豪度假酒店", lon: 109.630725, lat: 18.226504 },
-                { name: "小海豚海鲜餐厅", lon: 109.645250, lat: 18.234440 },
-                { name: "亚龙湾热带森林公园", lon: 109.640, lat: 18.240 },
-                { name: "东海龙宫(大东海店)", lon: 109.520702, lat: 18.220858 },
-                { name: "大东海夜市", lon: 109.523050, lat: 18.221443 },
-                { name: "三亚国际免税城", lon: 109.750634, lat: 18.373824 },
-                { name: "黎竹·海南私房手艺菜", lon: 109.630860, lat: 18.228062 },
-                { name: "益龙海景渔村", lon: 109.464219, lat: 18.282593 }
-            ];
+        // 初始化地图
+        function initMap() {
+            if (map) {
+                map.remove();
+            }
             
-            const fullMapUrl = createAllPointsUrl(allPoints);
-            window.open(fullMapUrl, '_blank');
+            // 创建地图，以三亚为中心
+            map = L.map('mapContainer').setView([18.3, 109.5], 10);
+            
+            // 添加 OpenStreetMap 图层
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // 默认显示 Day 1 路线
+            showDayRoute('day1');
         }
 
-        function openTaxiService() {
-            // 创建打车选择菜单
-            const destinations = [
-                { name: "三亚亚龙湾万豪度假酒店", url: "amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=18.226504&dlon=109.630725&dname=%E4%B8%89%E4%BA%9A%E4%BA%9A%E9%BE%99%E6%B9%BE%E4%B8%87%E8%B1%AA%E5%BA%A6%E5%81%87%E9%85%92%E5%BA%97" },
-                { name: "小海豚海鲜餐厅", url: "amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=18.234440&dlon=109.645250&dname=%E5%B0%8F%E6%B5%B7%E8%B1%9A%E6%B5%B7%E9%B2%9C%E9%A4%90%E5%8E%85" },
-                { name: "亚龙湾热带森林公园", url: "amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=18.24&dlon=109.64&dname=%E4%BA%9A%E9%BE%99%E6%B9%BE%E7%83%AD%E5%B8%A6%E6%A3%AE%E6%9E%97%E5%85%AC%E5%9B%AD" },
-                { name: "东海龙宫(大东海店)", url: "amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=18.220858&dlon=109.520702&dname=%E4%B8%9C%E6%B5%B7%E9%BE%99%E5%AE%AB" },
-                { name: "大东海夜市", url: "amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=18.221443&dlon=109.523050&dname=%E5%A4%A7%E4%B8%9C%E6%B5%B7%E5%A4%9C%E5%B8%82" },
-                { name: "三亚国际免税城", url: "amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=18.373824&dlon=109.750634&dname=%E4%B8%89%E4%BA%9A%E5%9B%BD%E9%99%85%E5%85%8D%E7%A8%8E%E5%9F%8E" },
-                { name: "黎竹·海南私房手艺菜", url: "amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=18.228062&dlon=109.630860&dname=%E9%BB%8E%E7%AB%B9%E6%B5%B7%E5%8D%97%E7%A7%81%E6%88%BF%E6%89%8B%E8%89%BA%E8%8F%9C" },
-                { name: "益龙海景渔村", url: "amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=18.282593&dlon=109.464219&dname=%E7%9B%8A%E9%BE%99%E6%B5%B7%E6%99%AF%E6%B8%94%E6%9D%91" }
-            ];
+        // 清除地图上的标记和路线
+        function clearMap() {
+            currentMarkers.forEach(marker => map.removeLayer(marker));
+            currentPolylines.forEach(polyline => map.removeLayer(polyline));
+            currentMarkers = [];
+            currentPolylines = [];
+        }
 
-            let options = "请选择打车目的地：\n";
-            destinations.forEach((dest, index) => {
-                options += `${index + 1}. ${dest.name}\n`;
+        // 创建自定义图标
+        function createCustomIcon(emoji, color) {
+            return L.divIcon({
+                html: `<div style="
+                    width: 40px; 
+                    height: 40px; 
+                    background: ${color}; 
+                    border: 3px solid white; 
+                    border-radius: 50%; 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    font-size: 20px; 
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+                ">${emoji}</div>`,
+                className: 'custom-div-icon',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+                popupAnchor: [0, -20]
+            });
+        }
+
+        // 显示指定天的路线
+        function showDayRoute(day) {
+            clearMap();
+            
+            const route = dayRoutes[day];
+            if (!route) return;
+
+            const routeCoords = [];
+            
+            // 添加标记
+            route.locations.forEach((locationKey, index) => {
+                const location = locations[locationKey];
+                const coord = [location.lat, location.lng];
+                routeCoords.push(coord);
+
+                const marker = L.marker(coord, {
+                    icon: createCustomIcon(location.emoji, route.color)
+                }).addTo(map);
+
+                // 创建弹窗内容
+                const popupContent = `
+                    <div class="popup-title">${location.name}</div>
+                    <div class="popup-description">${route.title}</div>
+                    <button class="popup-taxi-btn" onclick="callTaxiFromMap('${location.name}', ${location.lat}, ${location.lng})">
+                        🚕 叫车前往
+                    </button>
+                `;
+                
+                marker.bindPopup(popupContent);
+                currentMarkers.push(marker);
             });
 
-            const choice = prompt(options + "\n请输入数字选择（1-8）：");
-            const index = parseInt(choice) - 1;
-            
-            if (index >= 0 && index < destinations.length) {
-                window.open(destinations[index].url, '_blank');
-            } else {
-                alert("请输入有效的数字选择（1-8）");
+            // 添加路线
+            if (routeCoords.length > 1) {
+                const polyline = L.polyline(routeCoords, {
+                    color: route.color,
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: '10, 10'
+                }).addTo(map);
+                currentPolylines.push(polyline);
+
+                // 调整地图视角以包含所有点
+                const group = new L.featureGroup(currentMarkers);
+                map.fitBounds(group.getBounds().pad(0.1));
             }
+
+            // 更新按钮状态
+            updateButtonState(day);
         }
 
-        function createPersonalMapUrl(title, points) {
-            if (points.length === 0) return '';
+        // 显示完整路线
+        function showFullRoute() {
+            clearMap();
             
-            // 如果只有一个点，使用标记API
-            if (points.length === 1) {
-                const point = points[0];
-                return `https://uri.amap.com/marker?position=${point.lon},${point.lat}&name=${encodeURIComponent(point.name)}&src=mypage`;
-            }
+            const allCoords = [];
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f39c12'];
             
-            // 多个点使用路线规划：从第一个点到最后一个点
-            const startPoint = points[0];
-            const endPoint = points[points.length - 1];
-            
-            // 创建路线规划URL
-            const routeUrl = `https://uri.amap.com/navigation?from=${startPoint.lon},${startPoint.lat}&to=${endPoint.lon},${endPoint.lat}&mode=car&policy=1&src=mypage&callnative=1`;
-            
-            return routeUrl;
-        }
+            // 添加所有地点的标记
+            Object.keys(dayRoutes).forEach((dayKey, dayIndex) => {
+                const route = dayRoutes[dayKey];
+                
+                route.locations.forEach((locationKey) => {
+                    const location = locations[locationKey];
+                    const coord = [location.lat, location.lng];
+                    
+                    // 避免重复添加相同位置
+                    if (!allCoords.find(c => c[0] === coord[0] && c[1] === coord[1])) {
+                        allCoords.push(coord);
+                        
+                        const marker = L.marker(coord, {
+                            icon: createCustomIcon(location.emoji, route.color)
+                        }).addTo(map);
 
-        function createAllPointsUrl(points) {
-            if (points.length === 0) return '';
-            
-            // 创建包含所有地点标记的URL
-            const baseUrl = 'https://uri.amap.com/marker';
-            const params = new URLSearchParams();
-            
-            // 添加第一个点作为主要位置
-            if (points.length > 0) {
-                params.append('position', `${points[0].lon},${points[0].lat}`);
-                params.append('name', points[0].name);
-            }
-            
-            // 添加其他点
-            points.slice(1).forEach((point, index) => {
-                params.append(`position${index + 1}`, `${point.lon},${point.lat}`);
-                params.append(`name${index + 1}`, point.name);
-            });
-            
-            params.append('src', 'mypage');
-            params.append('coordinate', 'gaode');
-            
-            return `${baseUrl}?${params.toString()}`;
-        }
-
-        // 添加一些交互效果
-        document.addEventListener('DOMContentLoaded', function() {
-            // 为餐厅卡片添加点击效果
-            const restaurantCards = document.querySelectorAll('.restaurant-card');
-            restaurantCards.forEach(card => {
-                card.addEventListener('click', function() {
-                    const name = this.querySelector('.restaurant-name').textContent;
-                    alert(`您点击了：${name}\n建议提前预约，特别是靠窗海景位置！`);
+                        const popupContent = `
+                            <div class="popup-title">${location.name}</div>
+                            <div class="popup-description">完整行程地点</div>
+                            <button class="popup-taxi-btn" onclick="callTaxiFromMap('${location.name}', ${location.lat}, ${location.lng})">
+                                🚕 叫车前往
+                            </button>
+                        `;
+                        
+                        marker.bindPopup(popupContent);
+                        currentMarkers.push(marker);
+                    }
                 });
             });
 
+            // 为每天添加单独的路线
+            Object.keys(dayRoutes).forEach((dayKey) => {
+                const route = dayRoutes[dayKey];
+                const routeCoords = route.locations.map(locationKey => {
+                    const location = locations[locationKey];
+                    return [location.lat, location.lng];
+                });
+
+                if (routeCoords.length > 1) {
+                    const polyline = L.polyline(routeCoords, {
+                        color: route.color,
+                        weight: 3,
+                        opacity: 0.6,
+                        dashArray: '5, 5'
+                    }).addTo(map);
+                    currentPolylines.push(polyline);
+                }
+            });
+
+            // 调整地图视角
+            if (currentMarkers.length > 0) {
+                const group = new L.featureGroup(currentMarkers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+
+            // 更新按钮状态
+            updateButtonState('full');
+        }
+
+        // 更新按钮状态
+        function updateButtonState(activeDay) {
+            document.querySelectorAll('.map-btn').forEach(btn => {
+                btn.classList.remove('active');
+                
+                if (activeDay === 'full' && btn.textContent.includes('完整行程')) {
+                    btn.classList.add('active');
+                } else if (btn.textContent.includes(activeDay.replace('day', 'Day '))) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        // 从地图弹窗叫车
+        function callTaxiFromMap(destination, lat, lng) {
+            const taxiUrl = `amapuri://drive/takeTaxi?sourceApplication=amapplatform&dlat=${lat}&dlon=${lng}&dname=${encodeURIComponent(destination)}`;
+            
+            window.open(taxiUrl, '_blank');
+            
+            setTimeout(() => {
+                const fallback = confirm(`正在为您叫车前往：${destination}\n\n如果未能打开高德地图APP，是否使用网页版？`);
+                if (fallback) {
+                    const webUrl = `https://uri.amap.com/navigation?to=${lng},${lat}&mode=car&policy=1&src=mypage&callnative=1`;
+                    window.open(webUrl, '_blank');
+                }
+            }, 2000);
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化地图
+            initMap();
+            
             // 为时间轴项目添加悬停效果
             const timelineItems = document.querySelectorAll('.timeline-item');
             timelineItems.forEach(item => {
